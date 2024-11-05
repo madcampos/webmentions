@@ -5,7 +5,10 @@ import { STATUS_CODES } from './statusCodes.js';
 
 const app = new Hono();
 
-// TODO: move to external resources/db
+// TODO: Move to external resources/db
+// TODO: Generate manifest from astro
+// TODO: Save blocklist in KV storage
+// TODO: save list of webmentions in D1 SQLite storage. Use Knex?
 const TARGET_URLS: string[] = ['/blog/2024/09/overly-overlays/'];
 const BLOCKLIST_DOMAINS: string[] = [];
 
