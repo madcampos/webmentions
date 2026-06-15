@@ -1,3 +1,5 @@
+// oxlint-disable typescript/only-throw-error
+
 import { env } from 'cloudflare:workers';
 import { ErrorResponse, STATUS_CODES } from './utils.ts';
 
