@@ -1,0 +1,58 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "webmentions",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-06-12",
+	"compatibility_flags": ["nodejs_compat"],
+	"keep_vars": false,
+	"send_metrics": false,
+	"preserve_file_names": true,
+	"minify": true,
+	"workers_dev": false,
+	"preview_urls": false,
+	"route": { "pattern": "webmentions.madcampos.dev", "custom_domain": true },
+	"observability": {
+		"enabled": true,
+		"head_sampling_rate": 1
+	},
+	"dev": {
+		"ip": "localhost",
+		"port": 4321,
+		"local_protocol": "https",
+		"upstream_protocol": "https"
+	},
+	"d1_databases": [
+		{
+			"binding": "Database",
+			"database_name": "webmentions-db",
+			"database_id": "bcbec7be-b606-4ce1-a81d-43b17e871393",
+			"preview_database_id": "webmentions-db",
+			"migrations_dir": "migrations",
+			"migrations_table": "migrations"
+		}
+	],
+	"vars": {
+		"NODE_ENV": "production",
+		"ALLOWED_ORIGINS": "madcampos.dev",
+		"TARGET_PATHS": "/blog/"
+	},
+	"env": {
+		"local": {
+			"d1_databases": [
+				{
+					"binding": "Database",
+					"database_name": "webmentions-db",
+					"database_id": "webmentions-db-local",
+					"preview_database_id": "webmentions-db",
+					"migrations_dir": "migrations",
+					"migrations_table": "migrations"
+				}
+			],
+			"vars": {
+				"NODE_ENV": "local",
+				"ALLOWED_ORIGINS": "madcampos.dev;localhost",
+				"TARGET_PATHS": "/blog/"
+			}
+		}
+	}
+}
