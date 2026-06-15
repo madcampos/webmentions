@@ -8,3 +8,4 @@ CREATE TABLE IF NOT EXISTS webmentions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_webmentions_not_deleted ON webmentions(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_webmentions_target ON webmentions(target);
