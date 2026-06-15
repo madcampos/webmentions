@@ -17,7 +17,7 @@
 		"deploy": "wrangler deploy --minify --env=\"\"",
 		"format": "dprint fmt --staged",
 		"typecheck": "tsc --noEmit",
-		"lint:js": "eslint --fix",
+		"lint:js": "oxlint --fix",
 		"lint": "pnpm run typecheck && pnpm run lint:js",
 		"db:migrations:local": "wrangler d1 migrations apply madcampos-site-db",
 		"db:migrations:remote": "wrangler d1 migrations apply madcampos-site-db --remote"
@@ -27,6 +27,7 @@
 		"dprint": "^0.54.0",
 		"oxlint": "^1.68.0",
 		"oxlint-tsgolint": "^0.23.0",
+		"typescript": "^6.0.3",
 		"wrangler": "^4.100.0"
 	}
 }
