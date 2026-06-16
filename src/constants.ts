@@ -9,3 +9,4 @@ export const TARGET_PATHS: string[] = env.TARGET_PATHS.split(';');
 export const MAX_CONTENT_LENGTH = 5 * 1024 * 1024;
 export const DEFAULT_WINDOW_SIZE = 5;
 export const DEFAULT_WEBMENTION_TIMEOUT_MS = 1 * 60 * 60 * 1000;
+export const MAX_JSON_RECURSE_DEPTH = 20;
