@@ -1,0 +1,1 @@
+ALTER TABLE webmentions ADD COLUMN content TEXT DEFAULT NULL;

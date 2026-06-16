@@ -46,6 +46,7 @@ router.post('/', async (request) => {
 
 		const contentType = prefetchRequest.headers.get('Content-Type');
 
+		// TODO: update webmention based on new data
 		let sourceHasTarget = false;
 		const fetchTimeout = new AbortController();
 
