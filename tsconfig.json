@@ -17,7 +17,7 @@
 		"isolatedModules": true,
 		"isolatedDeclarations": false,
 		"jsx": "preserve",
-		"lib": ["ESNext", "DOM", "DOM.Iterable", "DOM.AsyncIterable"],
+		"lib": ["ESNext"],
 		"libReplacement": false,
 		"module": "ESNext",
 		"moduleDetection": "force",
