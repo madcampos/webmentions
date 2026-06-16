@@ -1,13 +1,11 @@
 // oxlint-disable typescript/only-throw-error
 
 import { checkHTMLIncludesDest, checkJSONIncludesDest, checkTextIncludesDest } from './checker.js';
+import { MAX_CONTENT_LENGTH, PROCESS_TIMEOUT } from './constants.js';
 import { deleteMention, hasExistingMention, saveWebmention, updateWebmention } from './db.js';
 import { Router } from './router.js';
 import { ErrorResponse, STATUS_CODES, TextResponse } from './utils.js';
 import { parseWebmentionPatameters } from './validation.js';
-
-// oxlint-disable-next-line no-magic-numbers
-const PROCESS_TIMEOUT = 1000 * 60 * 2;
 
 const router = new Router();
 
@@ -17,19 +15,22 @@ router.post('/', async (request) => {
 	try {
 		const { source, target } = await parseWebmentionPatameters(request);
 
-		const timeoutController = new AbortController();
+		const prefetchTimeout = new AbortController();
 
-		setTimeout(() => timeoutController.abort(), PROCESS_TIMEOUT);
+		setTimeout(() => prefetchTimeout.abort(), PROCESS_TIMEOUT);
 
-		const response = await fetch(source, { signal: timeoutController.signal });
+		const prefetchRequest = await fetch(source, {
+			method: 'HEAD',
+			signal: prefetchTimeout.signal
+		});
 
-		if (!response.ok && response.status !== STATUS_CODES.GONE) {
+		if (!prefetchRequest.ok && prefetchRequest.status !== STATUS_CODES.GONE) {
 			throw new ErrorResponse('Unable to fetch source');
 		}
 
 		const hasMention = await hasExistingMention(source.href, target.href);
 
-		if (response.status === STATUS_CODES.GONE) {
+		if (prefetchRequest.status === STATUS_CODES.GONE) {
 			if (!hasMention) {
 				throw new ErrorResponse('Web mention does not exist');
 			}
@@ -38,16 +39,24 @@ router.post('/', async (request) => {
 			return new TextResponse('Webmention deleted');
 		}
 
-		const contentType = response.headers.get('Content-Type');
+		const contentLength = prefetchRequest.headers.get('Content-Length');
+		if (contentLength && parseInt(contentLength, 10) > MAX_CONTENT_LENGTH) {
+			throw new ErrorResponse('Source document is too large');
+		}
+
+		const contentType = prefetchRequest.headers.get('Content-Type');
 
 		let sourceHasTarget = false;
+		const fetchTimeout = new AbortController();
 
-		if (contentType?.includes('text/html')) {
-			sourceHasTarget = await checkHTMLIncludesDest(response, source, target);
-		} else if (contentType?.includes('application/json')) {
-			sourceHasTarget = await checkJSONIncludesDest(response, target);
+		setTimeout(() => fetchTimeout.abort(), PROCESS_TIMEOUT);
+
+		if (contentType?.startsWith('text/html')) {
+			sourceHasTarget = await checkHTMLIncludesDest(source, target, fetchTimeout);
+		} else if (contentType?.startsWith('application/json')) {
+			sourceHasTarget = await checkJSONIncludesDest(source, target, fetchTimeout);
 		} else {
-			sourceHasTarget = await checkTextIncludesDest(response, target);
+			sourceHasTarget = await checkTextIncludesDest(source, target, fetchTimeout);
 		}
 
 		if (!sourceHasTarget) {
@@ -81,16 +90,6 @@ router.post('/', async (request) => {
 
 router.get('/mentions', () =>
 	// TODO: return mentions for a url
-	new Response('it works!', {
-		status: STATUS_CODES.OKAY,
-		headers: {
-			'Content-Type': 'text/plain'
-		}
-	}));
-
-router.post('/block', () =>
-	// TODO: create blocklist and ban domains
-
 	new Response('it works!', {
 		status: STATUS_CODES.OKAY,
 		headers: {

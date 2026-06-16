@@ -1,5 +1,24 @@
-export async function checkHTMLIncludesDest(response: Response, sourceUrl: URL, destUrl: URL) {
-	const responseClone = response.clone();
+import { MAX_CONTENT_LENGTH } from './constants.ts';
+
+export async function checkHTMLIncludesDest(sourceUrl: URL, destUrl: URL, abortController: AbortController) {
+	const response = await fetch(sourceUrl, {
+		method: 'GET',
+		signal: abortController.signal
+	});
+
+	if (!response.ok) {
+		return false;
+	}
+
+	if (!response.headers.get('Content-Type')?.startsWith('text/html')) {
+		return false;
+	}
+
+	const contentLength = response.headers.get('Content-Length');
+	if (contentLength && parseInt(contentLength, 10) > MAX_CONTENT_LENGTH) {
+		return false;
+	}
+
 	const htmlRewriter = new HTMLRewriter();
 
 	const urlsForLinks: URL[] = [];
@@ -18,7 +37,7 @@ export async function checkHTMLIncludesDest(response: Response, sourceUrl: URL, 
 		})()
 	);
 
-	const transformedResponse = htmlRewriter.transform(responseClone);
+	const transformedResponse = htmlRewriter.transform(response);
 	// INFO: we need to consume the response body for the handlers to be called.
 	await transformedResponse.arrayBuffer();
 
@@ -33,19 +52,51 @@ export async function checkHTMLIncludesDest(response: Response, sourceUrl: URL, 
 	return matchingUrls[0] !== undefined;
 }
 
-export async function checkTextIncludesDest(response: Response, destUrl: URL) {
-	const responseClone = response.clone();
+export async function checkTextIncludesDest(sourceUrl: URL, destUrl: URL, abortController: AbortController) {
+	const response = await fetch(sourceUrl, {
+		method: 'GET',
+		signal: abortController.signal
+	});
 
-	const text = await responseClone.text();
+	if (!response.ok) {
+		return false;
+	}
+
+	if (!response.headers.get('Content-Type')?.startsWith('text/')) {
+		return false;
+	}
+
+	const contentLength = response.headers.get('Content-Length');
+	if (contentLength && parseInt(contentLength, 10) > MAX_CONTENT_LENGTH) {
+		return false;
+	}
+
+	const text = await response.text();
 
 	return text.includes(`${destUrl.origin}${destUrl.pathname}`);
 }
 
-export async function checkJSONIncludesDest(response: Response, destUrl: URL) {
-	const responseClone = response.clone();
+export async function checkJSONIncludesDest(sourceUrl: URL, destUrl: URL, abortController: AbortController) {
+	const response = await fetch(sourceUrl, {
+		method: 'GET',
+		signal: abortController.signal
+	});
+
+	if (!response.ok) {
+		return false;
+	}
+
+	if (!response.headers.get('Content-Type')?.startsWith('application/json')) {
+		return false;
+	}
+
+	const contentLength = response.headers.get('Content-Length');
+	if (contentLength && parseInt(contentLength, 10) > MAX_CONTENT_LENGTH) {
+		return false;
+	}
 
 	try {
-		const json = await responseClone.json();
+		const json = await response.json();
 
 		const search = (obj: unknown): boolean => {
 			if (typeof obj === 'string') {

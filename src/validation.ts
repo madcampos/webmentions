@@ -1,16 +1,10 @@
 // oxlint-disable typescript/only-throw-error
 
-import { env } from 'cloudflare:workers';
+import { checkAndBlockOrigin } from './abuse-prevention.ts';
+import { ALLOWED_ORIGINS, ALLOWED_PROTOCOLS, TARGET_PATHS } from './constants.ts';
 import { ErrorResponse, STATUS_CODES } from './utils.ts';
 
-// TODO: Save blocklist in KV storage
-const BLOCKED_DOMAINS: string[] = [];
-
-const ALLOWED_ORIGINS = env.ALLOWED_ORIGINS.split(';');
-const ALLOWED_PROTOCOLS = ['http:', 'https:'];
-const TARGET_PATHS: string[] = env.TARGET_PATHS.split(';');
-
-function parseSource(source: FormDataEntryValue | null) {
+async function parseSource(source: FormDataEntryValue | null) {
 	if (typeof source !== 'string' || !URL.canParse(source)) {
 		throw new ErrorResponse('Invalid "source": not a URL');
 	}
@@ -21,8 +15,9 @@ function parseSource(source: FormDataEntryValue | null) {
 		throw new ErrorResponse('Invalid "source": protocol is not http nor https');
 	}
 
-	if (BLOCKED_DOMAINS.includes(parsedSource.hostname)) {
-		throw new ErrorResponse('Domain blocked', STATUS_CODES.FORBIDDEN);
+	const originBlocked = await checkAndBlockOrigin(parsedSource.origin);
+	if (originBlocked) {
+		throw new ErrorResponse('Origin blocked', STATUS_CODES.FORBIDDEN);
 	}
 
 	return parsedSource;
@@ -58,7 +53,7 @@ export async function parseWebmentionPatameters(request: Request) {
 	}
 
 	const data = await request.formData();
-	const source = parseSource(data.get('source'));
+	const source = await parseSource(data.get('source'));
 	const target = parseTarget(data.get('target'));
 
 	if (source.href === target.href) {
