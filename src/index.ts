@@ -51,7 +51,7 @@ router.post('/', async (request) => {
 
 		setTimeout(() => fetchTimeout.abort(), PROCESS_TIMEOUT);
 
-		if (contentType?.startsWith('text/html')) {
+		if (contentType?.startsWith('text/html') || contentType?.startsWith('application/xhtml+xml')) {
 			sourceHasTarget = await checkHTMLIncludesDest(source, target, fetchTimeout);
 		} else if (contentType?.startsWith('application/json')) {
 			sourceHasTarget = await checkJSONIncludesDest(source, target, fetchTimeout);

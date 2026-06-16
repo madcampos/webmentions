@@ -1,4 +1,11 @@
+import { parse } from 'node-html-parser';
 import { MAX_CONTENT_LENGTH } from './constants.ts';
+import type { WebmentionType } from './db.ts';
+
+interface FoundUrl {
+	url: URL;
+	type: WebmentionType;
+}
 
 export async function checkHTMLIncludesDest(sourceUrl: URL, destUrl: URL, abortController: AbortController) {
 	const response = await fetch(sourceUrl, {
@@ -10,7 +17,8 @@ export async function checkHTMLIncludesDest(sourceUrl: URL, destUrl: URL, abortC
 		return false;
 	}
 
-	if (!response.headers.get('Content-Type')?.startsWith('text/html')) {
+	const contentType = response.headers.get('Content-Type') ?? '';
+	if (!contentType.startsWith('text/html') && !contentType.startsWith('application/xhtml+xml')) {
 		return false;
 	}
 
@@ -19,29 +27,76 @@ export async function checkHTMLIncludesDest(sourceUrl: URL, destUrl: URL, abortC
 		return false;
 	}
 
-	const htmlRewriter = new HTMLRewriter();
+	const responseText = await response.text();
+	const root = parse(responseText);
+	const urls: FoundUrl[] = [];
 
-	const urlsForLinks: URL[] = [];
+	root.querySelectorAll('a, link').forEach((element) => {
+		const url = element.getAttribute('href') ?? '';
 
-	htmlRewriter.on(
-		'a, link, embed, iframe, track, source, video, audio, img, image',
-		new (class LinkHandler implements HTMLRewriterElementContentHandlers {
-			element(element: HTMLElement) {
-				const url = element.getAttribute('href') ?? element.getAttribute('src') ?? '';
-
+		if (URL.canParse(url, sourceUrl.toString())) {
+			urls.push({
 				// INFO: set `sourceUrl` as the base url to handle relative links and such.
-				if (URL.canParse(url, sourceUrl)) {
-					urlsForLinks.push(new URL(url, sourceUrl));
-				}
-			}
-		})()
-	);
+				url: new URL(url, sourceUrl),
+				type: 'mention'
+			});
+		}
+	});
 
-	const transformedResponse = htmlRewriter.transform(response);
-	// INFO: we need to consume the response body for the handlers to be called.
-	await transformedResponse.arrayBuffer();
+	root.querySelectorAll(':is(a, link).u-like-of, .h-cite.u-like-of :is(a, link).u-url').forEach((element) => {
+		const url = element.getAttribute('href') ?? '';
 
-	const matchingUrls = urlsForLinks.filter((link) => {
+		if (URL.canParse(url, sourceUrl.toString())) {
+			urls.push({
+				// INFO: set `sourceUrl` as the base url to handle relative links and such.
+				url: new URL(url, sourceUrl),
+				type: 'reaction'
+			});
+		}
+	});
+
+	root.querySelectorAll(':is(a, link).u-repost-of, .h-cite.u-repost-of :is(a, link).u-url').forEach((element) => {
+		const url = element.getAttribute('href') ?? '';
+
+		if (URL.canParse(url, sourceUrl.toString())) {
+			urls.push({
+				// INFO: set `sourceUrl` as the base url to handle relative links and such.
+				url: new URL(url, sourceUrl),
+				type: 'repost'
+			});
+		}
+	});
+
+	root.querySelectorAll(':is(a, link).u-bookmark-of').forEach((element) => {
+		const url = element.getAttribute('href') ?? '';
+
+		if (URL.canParse(url, sourceUrl.toString())) {
+			urls.push({
+				// INFO: set `sourceUrl` as the base url to handle relative links and such.
+				url: new URL(url, sourceUrl),
+				type: 'bookmark'
+			});
+		}
+	});
+
+	root.querySelectorAll('.h-entry:has(.u-in-reply-to)').forEach((element) => {
+		const link = element.querySelector('.u-in-reply-to');
+		const url = link?.getAttribute('href') ?? '';
+
+		if (URL.canParse(url, sourceUrl.toString())) {
+			const content = element.querySelector('p-content')?.toString() ?? '';
+
+			urls.push({
+				// INFO: set `sourceUrl` as the base url to handle relative links and such.
+				url: new URL(url, sourceUrl),
+				type: 'comment'
+				// TODO: get reply/comment content
+			});
+		}
+	});
+
+	// TODO: de-dupe urls and aggregate types
+	const matchingUrls = urls.filter(({ url: link }) => {
 		const doesProtocolMatch = link.protocol === destUrl.protocol;
 		const doesHostnameMatch = link.hostname === destUrl.hostname;
 		const doesPathMatch = link.pathname === destUrl.pathname;

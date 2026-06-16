@@ -4,7 +4,7 @@ import { checkAndBlockOrigin } from './abuse-prevention.ts';
 import { ALLOWED_ORIGINS, ALLOWED_PROTOCOLS, TARGET_PATHS } from './constants.ts';
 import { ErrorResponse, STATUS_CODES } from './utils.ts';
 
-async function parseSource(source: FormDataEntryValue | null) {
+async function parseSource(source: string | File | null) {
 	if (typeof source !== 'string' || !URL.canParse(source)) {
 		throw new ErrorResponse('Invalid "source": not a URL');
 	}
@@ -23,7 +23,7 @@ async function parseSource(source: FormDataEntryValue | null) {
 	return parsedSource;
 }
 
-function parseTarget(target: FormDataEntryValue | null) {
+function parseTarget(target: string | File | null) {
 	if (typeof target !== 'string' || !URL.canParse(target)) {
 		throw new ErrorResponse('Invalid "target": not a URL');
 	}
