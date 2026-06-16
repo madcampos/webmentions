@@ -43,7 +43,7 @@
 		"sourceMap": false,
 		"strict": true,
 		"target": "ES2024",
-		"tsBuildInfoFile": "dist/.tsbuildinfo",
+		"tsBuildInfoFile": "node_modules/.tsbuildinfo",
 		"useDefineForClassFields": true,
 		"useUnknownInCatchVariables": false,
 		"verbatimModuleSyntax": true,
