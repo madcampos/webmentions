@@ -1,16 +1,19 @@
 import { type HTMLElement, parse } from 'node-html-parser';
+import { MAX_CONTENT_STRING_SIZE, MAX_URI_LENGTH } from './constants.ts';
 import type { WebmentionType } from './db.ts';
 import { ErrorResponse, STATUS_CODES } from './utils.ts';
+
+export interface WebmentionAuthor {
+	name: string;
+	avatar?: string;
+	link?: string;
+}
 
 export interface ParsedWebmention {
 	url: URL;
 	type: WebmentionType;
 	content?: string;
-	author?: {
-		name: string,
-		avatar?: string,
-		link?: string
-	};
+	author?: WebmentionAuthor;
 }
 
 class ElementStripper {
@@ -34,6 +37,43 @@ async function cleanHTMLString(htmlString: string) {
 	const result = rewriter.transform(new Response(htmlString));
 
 	return result.text();
+}
+
+function normalizeAuthor(author: Partial<WebmentionAuthor>, sourceUrl: URL) {
+	const normalizedAuthor = { ...author };
+
+	if (!normalizedAuthor.name) {
+		return undefined;
+	}
+
+	normalizedAuthor.name = normalizedAuthor.name.substring(0, MAX_CONTENT_STRING_SIZE);
+
+	if (normalizedAuthor.link !== undefined) {
+		if (URL.canParse(normalizedAuthor.link, sourceUrl.toString())) {
+			normalizedAuthor.link = new URL(normalizedAuthor.link, sourceUrl).href;
+		} else {
+			normalizedAuthor.link = undefined;
+		}
+	}
+
+	if (normalizedAuthor.link && normalizedAuthor.link.length > MAX_URI_LENGTH) {
+		normalizedAuthor.link = undefined;
+	}
+
+	if (normalizedAuthor.avatar !== undefined) {
+		if (URL.canParse(normalizedAuthor.avatar, sourceUrl.toString())) {
+			normalizedAuthor.avatar = new URL(normalizedAuthor.avatar, sourceUrl).href;
+		} else {
+			normalizedAuthor.avatar = undefined;
+		}
+	}
+
+	if (normalizedAuthor.avatar && normalizedAuthor.avatar.length > MAX_URI_LENGTH) {
+		normalizedAuthor.avatar = undefined;
+	}
+
+	// oxlint-disable-next-line typescript/consistent-type-assertions typescript/no-unsafe-type-assertion
+	return normalizedAuthor as WebmentionAuthor;
 }
 
 export function getWebmentionFromHtml(text: string, sourceUrl: URL, targetUrl: URL) {
@@ -74,17 +114,17 @@ export function getWebmentionFromHtml(text: string, sourceUrl: URL, targetUrl: U
 			return;
 		}
 
-		const author = {
+		const author = normalizeAuthor({
 			name: element.querySelector('.u-author .p-name')?.textContent,
 			avatar: element.querySelector('.u-author .u-photo')?.getAttribute('src'),
 			link: element.querySelector('a.u-author, .u-author a')?.getAttribute('href') ?? root.querySelector('link[rel="author"]')?.getAttribute('href')
-		};
+		}, sourceUrl);
 
 		urls.push({
 			url: targetUrl,
 			type: 'comment',
-			content: await cleanHTMLString(content),
-			...(author.name ? author : {})
+			content: (await cleanHTMLString(content)).substring(0, MAX_CONTENT_STRING_SIZE),
+			...(author ? { author } : {})
 		});
 	});
 
@@ -156,6 +196,6 @@ export function getWebmentionFromJson(text: string, targetUrl: URL) {
 		console.error(err);
 
 		// oxlint-disable-next-line typescript/only-throw-error
-		throw new ErrorResponse('Unable to parse JSON.', STATUS_CODES.BAD_REQUEST);
+		throw new ErrorResponse('Unable to parse JSON from "source".', STATUS_CODES.BAD_REQUEST);
 	}
 }

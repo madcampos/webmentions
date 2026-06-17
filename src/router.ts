@@ -1,3 +1,5 @@
+import { ErrorResponse, STATUS_CODES } from './utils.ts';
+
 export type RequestHandler = (request: Request, env: Env, context: ExecutionContext) => Promise<Response> | Response;
 
 export type HTTPMethod = 'DELETE' | 'GET' | 'HEAD' | 'OPTIONS' | 'PATCH' | 'POST' | 'PUT';
@@ -86,15 +88,27 @@ export class Router {
 	}
 
 	async fetch<CfHostMetadata = unknown>(request: Request<CfHostMetadata, IncomingRequestCfProperties<CfHostMetadata>>, env: Env, context: ExecutionContext) {
-		const resolvedUrl = new URL(request.url);
-		// oxlint-disable-next-line typescript/consistent-type-assertions typescript/no-unsafe-type-assertion
-		const methodRoutes = this.#routes[request.method.toUpperCase() as HTTPMethod];
-		const { pattern, handler } = methodRoutes.find(({ pattern: curPattern }) => curPattern.test(resolvedUrl.href)) ?? {};
+		try {
+			const resolvedUrl = new URL(request.url);
+			// oxlint-disable-next-line typescript/consistent-type-assertions typescript/no-unsafe-type-assertion
+			const methodRoutes = this.#routes[request.method.toUpperCase() as HTTPMethod];
+			const { pattern, handler } = methodRoutes.find(({ pattern: curPattern }) => curPattern.test(resolvedUrl.href)) ?? {};
 
-		if (!pattern || !handler) {
-			return this.#fallbackRoute(request, env, context);
+			if (!pattern || !handler) {
+				return await this.#fallbackRoute(request, env, context);
+			}
+
+			return await handler(request, env, context);
+		} catch (err) {
+			if (err instanceof ErrorResponse) {
+				return err;
+			}
+
+			if (err instanceof Error) {
+				return new ErrorResponse(err.message, STATUS_CODES.INTERNAL_SERVER_ERROR);
+			}
+
+			return new ErrorResponse('Oops...', STATUS_CODES.INTERNAL_SERVER_ERROR);
 		}
-
-		return handler(request, env, context);
 	}
 }

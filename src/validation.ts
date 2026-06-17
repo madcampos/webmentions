@@ -1,23 +1,36 @@
 // oxlint-disable typescript/only-throw-error
 
 import { checkAndBlockOrigin } from './abuse-prevention.ts';
-import { ALLOWED_ORIGINS, ALLOWED_PROTOCOLS, MAX_CONTENT_LENGTH, TARGET_PATHS } from './constants.ts';
+import {
+	ALLOWED_ORIGINS,
+	ALLOWED_PROTOCOLS,
+	DEFAULT_ITEMS_PER_PAGE,
+	MAX_CONTENT_LENGTH,
+	MAX_ITEMS_PER_PAGE,
+	MAX_URI_LENGTH,
+	MIN_ITEMS_PER_PAGE,
+	TARGET_PATHS
+} from './constants.ts';
 import { ErrorResponse, STATUS_CODES } from './utils.ts';
 
 async function parseSource(source: string | File | null) {
 	if (typeof source !== 'string' || !URL.canParse(source)) {
-		throw new ErrorResponse('Invalid "source": not a URL', STATUS_CODES.UNPROCESSABLE_CONTENT);
+		throw new ErrorResponse('Invalid "source": not a URL.', STATUS_CODES.UNPROCESSABLE_CONTENT);
 	}
 
 	const parsedSource = new URL(source);
 
 	if (!ALLOWED_PROTOCOLS.includes(parsedSource.protocol)) {
-		throw new ErrorResponse('Invalid "source": protocol is not http nor https', STATUS_CODES.UNPROCESSABLE_CONTENT);
+		throw new ErrorResponse('Invalid "source": protocol is not http nor https.', STATUS_CODES.UNPROCESSABLE_CONTENT);
 	}
 
 	const originBlocked = await checkAndBlockOrigin(parsedSource.origin);
 	if (originBlocked) {
-		throw new ErrorResponse('Origin blocked', STATUS_CODES.FORBIDDEN);
+		throw new ErrorResponse('Origin blocked.', STATUS_CODES.FORBIDDEN);
+	}
+
+	if (parsedSource.href.length > MAX_URI_LENGTH) {
+		throw new ErrorResponse('Invalid "source": URL too long.', STATUS_CODES.URI_TOO_LONG);
 	}
 
 	return parsedSource;
@@ -25,21 +38,25 @@ async function parseSource(source: string | File | null) {
 
 function parseTarget(target: string | File | null) {
 	if (typeof target !== 'string' || !URL.canParse(target)) {
-		throw new ErrorResponse('Invalid "target": not a URL', STATUS_CODES.UNPROCESSABLE_CONTENT);
+		throw new ErrorResponse('Invalid "target": not a URL.', STATUS_CODES.UNPROCESSABLE_CONTENT);
 	}
 
 	const parsedTarget = new URL(target);
 
 	if (!ALLOWED_PROTOCOLS.includes(parsedTarget.protocol)) {
-		throw new ErrorResponse('Invalid "target": protocol is not http nor https', STATUS_CODES.UNPROCESSABLE_CONTENT);
+		throw new ErrorResponse('Invalid "target": protocol is not http nor https.', STATUS_CODES.UNPROCESSABLE_CONTENT);
 	}
 
 	if (ALLOWED_ORIGINS.includes(parsedTarget.hostname)) {
-		throw new ErrorResponse('Invalid "target": origin it not this website', STATUS_CODES.FORBIDDEN);
+		throw new ErrorResponse('Invalid "target": origin it not this website.', STATUS_CODES.FORBIDDEN);
+	}
+
+	if (parsedTarget.href.length > MAX_URI_LENGTH) {
+		throw new ErrorResponse('Invalid "target": URL too long.', STATUS_CODES.URI_TOO_LONG);
 	}
 
 	if (!TARGET_PATHS.some((targetPath) => parsedTarget.pathname.startsWith(targetPath))) {
-		throw new ErrorResponse('Invalid "target": target does not accept webmentions', STATUS_CODES.FORBIDDEN);
+		throw new ErrorResponse('Invalid "target": target does not accept webmentions.', STATUS_CODES.FORBIDDEN);
 	}
 
 	return parsedTarget;
@@ -49,7 +66,7 @@ export async function parseWebmentionPatameters(request: Request, isSameSite = f
 	const contentType = request.headers.get('Content-Type');
 
 	if (contentType !== 'application/x-www-form-urlencoded' && !contentType?.startsWith('multipart/form-data')) {
-		throw new ErrorResponse('Wrong content type', STATUS_CODES.UNSUPPORTED_MEDIA_TYPE);
+		throw new ErrorResponse('Wrong content type.', STATUS_CODES.UNSUPPORTED_MEDIA_TYPE);
 	}
 
 	const data = await request.formData();
@@ -57,7 +74,7 @@ export async function parseWebmentionPatameters(request: Request, isSameSite = f
 	const target = parseTarget(data.get('target'));
 
 	if (!isSameSite && source.href === target.href) {
-		throw new ErrorResponse('"source" and "target" are the same', STATUS_CODES.UNPROCESSABLE_CONTENT);
+		throw new ErrorResponse('"source" and "target" are the same.', STATUS_CODES.UNPROCESSABLE_CONTENT);
 	}
 
 	// TODO: implement vouch and salmention
@@ -69,7 +86,7 @@ export async function parseWebmentionPatameters(request: Request, isSameSite = f
 
 export function validateFetchResponse(response: Response) {
 	if (!response.ok && response.status !== STATUS_CODES.GONE) {
-		throw new ErrorResponse('Unable to fetch source');
+		throw new ErrorResponse('Unable to fetch source.');
 	}
 
 	const contentLength = response.headers.get('Content-Length');
@@ -78,13 +95,13 @@ export function validateFetchResponse(response: Response) {
 	}
 
 	if (Number.parseInt(contentLength, 10) > MAX_CONTENT_LENGTH) {
-		throw new ErrorResponse('Source document is too large', STATUS_CODES.CONTENT_TOO_LARGE);
+		throw new ErrorResponse('Source document is too large.', STATUS_CODES.CONTENT_TOO_LARGE);
 	}
 
 	const contentType = response.headers.get('Content-Type');
 
 	if (!contentType) {
-		throw new ErrorResponse('Missing "Content-Type" header', STATUS_CODES.UNSUPPORTED_MEDIA_TYPE);
+		throw new ErrorResponse('Missing "Content-Type" header.', STATUS_CODES.UNSUPPORTED_MEDIA_TYPE);
 	}
 
 	const isJson = contentType.startsWith('application/json');
