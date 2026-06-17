@@ -1,11 +1,11 @@
 // oxlint-disable typescript/only-throw-error
 
-import { checkHTMLIncludesDest, checkJSONIncludesDest, checkTextIncludesDest } from './checker.js';
-import { MAX_CONTENT_LENGTH, PROCESS_TIMEOUT } from './constants.js';
 import { deleteMention, hasExistingMention, saveWebmention, updateWebmention } from './db.js';
+import { fetchHeaders, processResponseBody } from './fetch.js';
+import { type FoundUrl, getWebmentionFromHtml, getWebmentionFromJson, getWebmentionFromText } from './parser.js';
 import { Router } from './router.js';
 import { ErrorResponse, STATUS_CODES, TextResponse } from './utils.js';
-import { parseWebmentionPatameters } from './validation.js';
+import { parseWebmentionPatameters, validateFetchResponse } from './validation.js';
 
 const router = new Router();
 
@@ -15,54 +15,34 @@ router.post('/', async (request) => {
 	try {
 		const { source, target } = await parseWebmentionPatameters(request);
 
-		const prefetchTimeout = new AbortController();
-
-		setTimeout(() => prefetchTimeout.abort(), PROCESS_TIMEOUT);
-
-		const prefetchRequest = await fetch(source, {
-			method: 'HEAD',
-			signal: prefetchTimeout.signal
-		});
-
-		if (!prefetchRequest.ok && prefetchRequest.status !== STATUS_CODES.GONE) {
-			throw new ErrorResponse('Unable to fetch source');
-		}
+		const response = await fetchHeaders(source);
+		const { contentType, status } = validateFetchResponse(response);
 
 		const hasMention = await hasExistingMention(source.href, target.href);
 
-		if (prefetchRequest.status === STATUS_CODES.GONE) {
+		if (status === STATUS_CODES.GONE) {
 			if (!hasMention) {
-				throw new ErrorResponse('Web mention does not exist');
+				throw new ErrorResponse('Web mention does not exist.', STATUS_CODES.NOT_FOUND);
 			}
 
 			await deleteMention(source.href, target.href);
 			return new TextResponse('Webmention deleted');
 		}
 
-		const contentLength = prefetchRequest.headers.get('Content-Length');
-		if (contentLength && parseInt(contentLength, 10) > MAX_CONTENT_LENGTH) {
-			throw new ErrorResponse('Source document is too large');
-		}
+		const responseText = await processResponseBody(response);
 
-		const contentType = prefetchRequest.headers.get('Content-Type');
-
-		// TODO: update webmention based on new data
-		let sourceHasTarget = false;
-		const fetchTimeout = new AbortController();
-
-		setTimeout(() => fetchTimeout.abort(), PROCESS_TIMEOUT);
-
-		if (contentType?.startsWith('text/html') || contentType?.startsWith('application/xhtml+xml')) {
-			sourceHasTarget = await checkHTMLIncludesDest(source, target, fetchTimeout);
-		} else if (contentType?.startsWith('application/json')) {
-			sourceHasTarget = await checkJSONIncludesDest(source, target, fetchTimeout);
+		let webmention: FoundUrl | undefined;
+		if (contentType.startsWith('text/html') || contentType.startsWith('application/xhtml+xml')) {
+			webmention = getWebmentionFromHtml(responseText, source, target);
+		} else if (contentType.startsWith('application/json')) {
+			webmention = getWebmentionFromJson(responseText, target);
 		} else {
-			sourceHasTarget = await checkTextIncludesDest(source, target, fetchTimeout);
+			webmention = getWebmentionFromText(responseText, target);
 		}
 
-		if (!sourceHasTarget) {
+		if (!webmention) {
 			if (!hasMention) {
-				throw new ErrorResponse("Source doesn't mention target");
+				throw new ErrorResponse("Source doesn't mention target", STATUS_CODES.NOT_FOUND);
 			}
 
 			await deleteMention(source.href, target.href);
@@ -71,11 +51,11 @@ router.post('/', async (request) => {
 
 		if (hasMention) {
 			await updateWebmention(source.href, target.href);
-			return new TextResponse('Webmention updated');
+			return new TextResponse('Webmention updated', STATUS_CODES.ACCEPTED);
 		}
 
 		await saveWebmention(source.href, target.href);
-		return new TextResponse('Webmention created');
+		return new TextResponse('Webmention created', STATUS_CODES.CREATED);
 	} catch (err) {
 		if (err instanceof ErrorResponse) {
 			return err;
