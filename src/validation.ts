@@ -45,7 +45,7 @@ function parseTarget(target: string | File | null) {
 	return parsedTarget;
 }
 
-export async function parseWebmentionPatameters(request: Request) {
+export async function parseWebmentionPatameters(request: Request, isSameSite = false) {
 	const contentType = request.headers.get('Content-Type');
 
 	if (contentType !== 'application/x-www-form-urlencoded' && !contentType?.startsWith('multipart/form-data')) {
@@ -56,7 +56,7 @@ export async function parseWebmentionPatameters(request: Request) {
 	const source = await parseSource(data.get('source'));
 	const target = parseTarget(data.get('target'));
 
-	if (source.href === target.href) {
+	if (!isSameSite && source.href === target.href) {
 		throw new ErrorResponse('"source" and "target" are the same', STATUS_CODES.UNPROCESSABLE_CONTENT);
 	}
 
