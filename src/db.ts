@@ -94,6 +94,34 @@ export async function updateWebmention(source: string, webmention: ParsedWebment
 	return success;
 }
 
+export async function getWebmentionCount(target: string) {
+	const result = await env.Database.prepare(/* sql */ `
+		SELECT COUNT(*) as count
+		FROM webmentions
+		WHERE
+			target LIKE ?
+			AND deleted_at IS NULL
+		ORDER BY created_at DESC
+	`).bind(target).first<{ count: number }>();
+
+	return result?.count ?? 0;
+}
+
+export async function listWebmentions(target: string, limit = 10, offset = 0) {
+	const { results } = await env.Database.prepare(/* sql */ `
+		SELECT *
+		FROM webmentions
+		WHERE
+			target LIKE ?
+			AND deleted_at IS NULL
+		ORDER BY created_at DESC
+		LIMIT ?
+		SKIP ?
+	`).bind(target, limit, offset).run<Webmention>();
+
+	return results;
+}
+
 export async function getRecentOriginMentions(origin: string, windowSize: number) {
 	const { results } = await env.Database.prepare(/* sql */ `
 		SELECT created_at

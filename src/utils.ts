@@ -34,3 +34,12 @@ export class TextResponse extends Response {
 		});
 	}
 }
+
+export class JsonResponse extends Response {
+	constructor(json: unknown, status: StatusCodes = STATUS_CODES.OKAY) {
+		super(JSON.stringify(json), {
+			status,
+			headers: { 'Content-Type': 'application/json' }
+		});
+	}
+}

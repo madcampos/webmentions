@@ -104,3 +104,49 @@ export function validateFetchResponse(response: Response) {
 		ok: response.ok
 	};
 }
+
+export function parseUrl(request: Request) {
+	const url = new URL(request.url).searchParams.get('url');
+
+	if (!url) {
+		throw new ErrorResponse('Missing "url" parameter.');
+	}
+
+	if (!URL.canParse(url, request.url)) {
+		throw new ErrorResponse('Invalid "url" parameter.', STATUS_CODES.UNPROCESSABLE_CONTENT);
+	}
+
+	const requestUrl = new URL(request.url);
+	const parsedUrl = new URL(url, requestUrl);
+
+	if (requestUrl.host !== parsedUrl.host) {
+		throw new ErrorResponse('Invalid host for "url" parameter.', STATUS_CODES.UNPROCESSABLE_CONTENT);
+	}
+
+	if (parsedUrl.href.length > MAX_URI_LENGTH) {
+		throw new ErrorResponse('URL too long for parameter "url".', STATUS_CODES.URI_TOO_LONG);
+	}
+
+	return parsedUrl;
+}
+
+export function parseListParams(request: Request, totalItems: number) {
+	const searchParams = new URL(request.url).searchParams;
+
+	const limitParam = searchParams.get('limit') ?? DEFAULT_ITEMS_PER_PAGE.toString();
+	const pageParam = searchParams.get('page') ?? '1';
+
+	const parsedLimit = Number.parseInt(limitParam, 10);
+	const normalizedLimit = Number.isNaN(parsedLimit) ? DEFAULT_ITEMS_PER_PAGE : Math.min(MAX_ITEMS_PER_PAGE, Math.max(MIN_ITEMS_PER_PAGE, parsedLimit));
+
+	const parsedPage = Number.parseInt(pageParam, 10);
+	const lastPage = Math.ceil(totalItems / normalizedLimit);
+	const normalizedPage = Number.isNaN(parsedPage) ? 1 : Math.min(lastPage, Math.max(1, parsedPage));
+
+	return {
+		limit: normalizedLimit,
+		page: normalizedPage,
+		lastPage,
+		offset: (normalizedPage - 1) * normalizedLimit
+	};
+}

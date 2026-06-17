@@ -54,29 +54,25 @@ router.post('/', async (request) => {
 			return new TextResponse('Webmention updated', STATUS_CODES.ACCEPTED);
 		}
 
-		await saveWebmention(source.href, webmention);
-		return new TextResponse('Webmention created', STATUS_CODES.CREATED);
-	} catch (err) {
-		if (err instanceof ErrorResponse) {
-			return err;
-		}
 
-		if (err instanceof Error) {
-			return new ErrorResponse(err.message);
-		}
+router.get('/mentions', async (request) => {
+	const url = parseUrl(request);
 
-		return new ErrorResponse('Oops...', STATUS_CODES.INTERNAL_SERVER_ERROR);
-	}
+	const totalItems = await getWebmentionCount(url.href);
+	const { limit, offset, page, lastPage } = parseListParams(request, totalItems);
+
+	const data = await listWebmentions(url.href, limit, offset);
+
+	return new JsonResponse({
+		data,
+		start: offset,
+		end: offset + data.length,
+		total: totalItems,
+		size: limit,
+		currentPage: page,
+		lastPage
+	});
 });
-
-router.get('/mentions', () =>
-	// TODO: return mentions for a url
-	new Response('it works!', {
-		status: STATUS_CODES.OKAY,
-		headers: {
-			'Content-Type': 'text/plain'
-		}
-	}));
 
 // oxlint-disable-next-line import/no-default-export
 export default router;
