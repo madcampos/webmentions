@@ -1,1 +1,4 @@
 ALTER TABLE webmentions ADD COLUMN content TEXT DEFAULT NULL;
+ALTER TABLE webmentions ADD COLUMN author_name TEXT DEFAULT NULL;
+ALTER TABLE webmentions ADD COLUMN author_avatar TEXT DEFAULT NULL;
+ALTER TABLE webmentions ADD COLUMN author_link TEXT DEFAULT NULL;
