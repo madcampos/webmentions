@@ -23,11 +23,13 @@
 		"db:migrations:remote": "wrangler d1 migrations apply madcampos-site-db --remote"
 	},
 	"devDependencies": {
+		"@cloudflare/vitest-pool-workers": "^0.16.16",
 		"@types/node": "^25.9.2",
 		"dprint": "^0.54.0",
 		"oxlint": "^1.68.0",
 		"oxlint-tsgolint": "^0.23.0",
 		"typescript": "^6.0.3",
+		"vitest": "^4.1.8",
 		"wrangler": "^4.100.0"
 	},
 	"dependencies": {

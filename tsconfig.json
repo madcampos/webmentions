@@ -47,6 +47,6 @@
 		"useDefineForClassFields": true,
 		"useUnknownInCatchVariables": false,
 		"verbatimModuleSyntax": true,
-		"types": []
+		"types": ["@cloudflare/vitest-pool-workers/types"]
 	}
 }
