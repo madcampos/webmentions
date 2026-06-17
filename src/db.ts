@@ -1,4 +1,5 @@
 import { env } from 'cloudflare:workers';
+import type { ParsedWebmention } from './parser.ts';
 
 export type WebmentionType = 'comment' | 'mention' | 'reaction' | 'repost' | 'bookmark';
 
@@ -9,6 +10,10 @@ export interface Webmention {
 	created_at: string;
 	updated_at: string | null;
 	deleted_at: string | null;
+	content: string | null;
+	author_name: string | null;
+	author_avatar: string | null;
+	author_link: string | null;
 }
 
 export async function hasExistingMention(source: string, target: string) {
@@ -36,29 +41,55 @@ export async function deleteMention(source: string, target: string) {
 	return success;
 }
 
-export async function saveWebmention(source: string, target: string, type: WebmentionType = 'mention') {
+export async function saveWebmention(source: string, webmention: ParsedWebmention) {
 	const { success } = await env.Database.prepare(/* sql */ `
 		INSERT INTO webmentions
-			(source, target, type)
+			(
+				source, target, type,
+				content, author_name, author_avatar, author_link
+			)
 		VALUES
-			(?, ?, ?)
+			(
+				?, ?, ?,
+				?, ?, ?, ?
+			)
 		ON CONFLICT(source, target) DO NOTHING
-	`).bind(source, target, type).run();
+	`).bind(
+		source,
+		webmention.url,
+		webmention.type,
+		webmention.content ?? null,
+		webmention.author?.name ?? null,
+		webmention.author?.avatar ?? null,
+		webmention.author?.link ?? null
+	).run();
 
 	return success;
 }
 
-export async function updateWebmention(source: string, target: string, type: WebmentionType = 'mention') {
+export async function updateWebmention(source: string, webmention: ParsedWebmention) {
 	const { success } = await env.Database.prepare(/* sql */ `
 		UPDATE webmentions
 		SET
 			type = ?,
+			content = ?,
+			author_name = ?,
+			author_avatar = ?,
+			author_link = ?,
 			updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
 		WHERE
 			source = ?
 			AND target = ?
 			AND deleted_at IS NULL
-	`).bind(type, source, target).run();
+	`).bind(
+		webmention.type,
+		webmention.content ?? null,
+		webmention.author?.name ?? null,
+		webmention.author?.avatar ?? null,
+		webmention.author?.link ?? null,
+		source,
+		webmention.url
+	).run();
 
 	return success;
 }

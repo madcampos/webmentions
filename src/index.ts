@@ -2,7 +2,7 @@
 
 import { deleteMention, hasExistingMention, saveWebmention, updateWebmention } from './db.js';
 import { fetchHeaders, processResponseBody } from './fetch.js';
-import { type FoundUrl, getWebmentionFromHtml, getWebmentionFromJson, getWebmentionFromText } from './parser.js';
+import { getWebmentionFromHtml, getWebmentionFromJson, getWebmentionFromText, type ParsedWebmention } from './parser.js';
 import { Router } from './router.js';
 import { ErrorResponse, STATUS_CODES, TextResponse } from './utils.js';
 import { parseWebmentionPatameters, validateFetchResponse } from './validation.js';
@@ -31,7 +31,7 @@ router.post('/', async (request) => {
 
 		const responseText = await processResponseBody(response);
 
-		let webmention: FoundUrl | undefined;
+		let webmention: ParsedWebmention | undefined;
 		if (contentType.startsWith('text/html') || contentType.startsWith('application/xhtml+xml')) {
 			webmention = getWebmentionFromHtml(responseText, source, target);
 		} else if (contentType.startsWith('application/json')) {
@@ -50,11 +50,11 @@ router.post('/', async (request) => {
 		}
 
 		if (hasMention) {
-			await updateWebmention(source.href, target.href);
+			await updateWebmention(source.href, webmention);
 			return new TextResponse('Webmention updated', STATUS_CODES.ACCEPTED);
 		}
 
-		await saveWebmention(source.href, target.href);
+		await saveWebmention(source.href, webmention);
 		return new TextResponse('Webmention created', STATUS_CODES.CREATED);
 	} catch (err) {
 		if (err instanceof ErrorResponse) {

@@ -2,7 +2,7 @@ import { type HTMLElement, parse } from 'node-html-parser';
 import type { WebmentionType } from './db.ts';
 import { ErrorResponse, STATUS_CODES } from './utils.ts';
 
-export interface FoundUrl {
+export interface ParsedWebmention {
 	url: URL;
 	type: WebmentionType;
 	content?: string;
@@ -36,10 +36,10 @@ async function cleanHTMLString(htmlString: string) {
 	return result.text();
 }
 
-export function getWebmentionFromHtml(text: string, sourceUrl: URL, destUrl: URL) {
+export function getWebmentionFromHtml(text: string, sourceUrl: URL, targetUrl: URL) {
 	const root = parse(text);
 
-	const urls: FoundUrl[] = [];
+	const urls: ParsedWebmention[] = [];
 	const handleSimpleLink = (type: WebmentionType) => (element: HTMLElement) => {
 		const urlString = element.getAttribute('href') ?? '';
 
@@ -48,12 +48,12 @@ export function getWebmentionFromHtml(text: string, sourceUrl: URL, destUrl: URL
 			return;
 		}
 
-		if (urls.find(({ url: existingUrl }) => existingUrl.href === destUrl.href)) {
+		if (urls.find(({ url: existingUrl }) => existingUrl.href === targetUrl.href)) {
 			return;
 		}
 
 		urls.push({
-			url: destUrl,
+			url: targetUrl,
 			type
 		});
 	};
@@ -67,7 +67,8 @@ export function getWebmentionFromHtml(text: string, sourceUrl: URL, destUrl: URL
 			return;
 		}
 
-		const content = element.querySelector('.p-content, .e-content')?.textContent ?? element.querySelector('.p-summary')?.textContent;
+		const content = element.querySelector('.p-content, .e-content')?.textContent ?? element.querySelector('.p-summary')?.textContent ??
+			element.querySelector('.p-name')?.textContent;
 
 		if (!content) {
 			return;
@@ -80,7 +81,7 @@ export function getWebmentionFromHtml(text: string, sourceUrl: URL, destUrl: URL
 		};
 
 		urls.push({
-			url: destUrl,
+			url: targetUrl,
 			type: 'comment',
 			content: await cleanHTMLString(content),
 			...(author.name ? author : {})
@@ -93,9 +94,9 @@ export function getWebmentionFromHtml(text: string, sourceUrl: URL, destUrl: URL
 	root.querySelectorAll('a, link').forEach(handleSimpleLink('mention'));
 
 	const matchingUrls = urls.filter(({ url: link }) => {
-		const doesProtocolMatch = link.protocol === destUrl.protocol;
-		const doesHostnameMatch = link.hostname === destUrl.hostname;
-		const doesPathMatch = link.pathname === destUrl.pathname;
+		const doesProtocolMatch = link.protocol === targetUrl.protocol;
+		const doesHostnameMatch = link.hostname === targetUrl.hostname;
+		const doesPathMatch = link.pathname === targetUrl.pathname;
 
 		return doesProtocolMatch && doesHostnameMatch && doesPathMatch;
 	});
@@ -103,18 +104,18 @@ export function getWebmentionFromHtml(text: string, sourceUrl: URL, destUrl: URL
 	return matchingUrls[0];
 }
 
-export function getWebmentionFromText(text: string, destUrl: URL) {
-	if (!text.includes(`${destUrl.origin}${destUrl.pathname}`)) {
+export function getWebmentionFromText(text: string, targetUrl: URL) {
+	if (!text.includes(`${targetUrl.origin}${targetUrl.pathname}`)) {
 		return;
 	}
 
 	return {
-		url: destUrl,
+		url: targetUrl,
 		type: 'mention'
-	} satisfies FoundUrl;
+	} satisfies ParsedWebmention;
 }
 
-export function getWebmentionFromJson(text: string, destUrl: URL) {
+export function getWebmentionFromJson(text: string, targetUrl: URL) {
 	try {
 		const json = JSON.parse(text);
 
@@ -129,16 +130,16 @@ export function getWebmentionFromJson(text: string, destUrl: URL) {
 			if (typeof obj === 'string') {
 				if (URL.canParse(obj)) {
 					const url = new URL(obj);
-					const doesProtocolMatch = url.protocol === destUrl.protocol;
-					const doesHostnameMatch = url.hostname === destUrl.hostname;
-					const doesPathMatch = url.pathname === destUrl.pathname;
+					const doesProtocolMatch = url.protocol === targetUrl.protocol;
+					const doesHostnameMatch = url.hostname === targetUrl.hostname;
+					const doesPathMatch = url.pathname === targetUrl.pathname;
 
 					// oxlint-disable-next-line max-depth
 					if (doesProtocolMatch && doesHostnameMatch && doesPathMatch) {
 						return {
-							url: destUrl,
+							url: targetUrl,
 							type: 'mention'
-						} satisfies FoundUrl;
+						} satisfies ParsedWebmention;
 					}
 				}
 			}
