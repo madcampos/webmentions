@@ -1,4 +1,4 @@
-import { DEFAULT_WEBMENTION_TIMEOUT_MS, DEFAULT_WINDOW_SIZE } from './constants.ts';
+import { DEFAULT_WEBMENTION_DELTA_TIME_MS, DEFAULT_WINDOW_SIZE } from './constants.ts';
 import { blockOrigin, getRecentOriginMentions, isOriginBlocked } from './db.ts';
 
 export async function checkAndBlockOrigin(origin: string): Promise<boolean> {
@@ -24,7 +24,7 @@ export async function checkAndBlockOrigin(origin: string): Promise<boolean> {
 
 	const duration = newestMention.getTime() - oldestMention.getTime();
 
-	if (duration < DEFAULT_WEBMENTION_TIMEOUT_MS) {
+	if (duration < DEFAULT_WEBMENTION_DELTA_TIME_MS) {
 		await blockOrigin(origin);
 		return true;
 	}
