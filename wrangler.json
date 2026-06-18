@@ -27,7 +27,7 @@
 			"database_name": "webmentions-db",
 			"database_id": "bcbec7be-b606-4ce1-a81d-43b17e871393",
 			"preview_database_id": "webmentions-db",
-			"migrations_dir": "migrations",
+			"migrations_dir": "db/migrations",
 			"migrations_table": "migrations"
 		}
 	],
@@ -44,7 +44,7 @@
 					"database_name": "webmentions-db",
 					"database_id": "webmentions-db-local",
 					"preview_database_id": "webmentions-db",
-					"migrations_dir": "migrations",
+					"migrations_dir": "db/migrations",
 					"migrations_table": "migrations"
 				}
 			],

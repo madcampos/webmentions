@@ -20,7 +20,8 @@
 		"lint:js": "oxlint --fix",
 		"lint": "pnpm run typecheck && pnpm run lint:js",
 		"db:migrations:local": "wrangler d1 migrations apply madcampos-site-db",
-		"db:migrations:remote": "wrangler d1 migrations apply madcampos-site-db --remote"
+		"db:migrations:remote": "wrangler d1 migrations apply madcampos-site-db --remote",
+		"test": "vitest"
 	},
 	"devDependencies": {
 		"@cloudflare/vitest-pool-workers": "^0.16.16",
