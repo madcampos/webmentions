@@ -84,23 +84,29 @@ export async function parseWebmentionPatameters(request: Request, isSameSite = f
 	};
 }
 
-export function validateFetchResponse(response: Response) {
+export function validateFetchResponse(response: Response, abortController: AbortController) {
 	if (!response.ok && response.status !== STATUS_CODES.GONE) {
 		throw new ErrorResponse('Unable to fetch source.');
 	}
 
 	const contentLength = response.headers.get('Content-Length');
 	if (!contentLength) {
+		abortController.abort();
+
 		throw new ErrorResponse('Invalid "source": "Content-Length" header is required on request.', STATUS_CODES.LENGHT_REQUIRED);
 	}
 
 	if (Number.parseInt(contentLength, 10) > MAX_CONTENT_LENGTH) {
+		abortController.abort();
+
 		throw new ErrorResponse('Source document is too large.', STATUS_CODES.CONTENT_TOO_LARGE);
 	}
 
 	const contentType = response.headers.get('Content-Type');
 
 	if (!contentType) {
+		abortController.abort();
+
 		throw new ErrorResponse('Missing "Content-Type" header.', STATUS_CODES.UNSUPPORTED_MEDIA_TYPE);
 	}
 
@@ -111,6 +117,8 @@ export function validateFetchResponse(response: Response) {
 	const isPlainText = contentType.startsWith('text/plain');
 
 	if (!isHtml && !isJson && !isXml && !isMarkdown && !isPlainText) {
+		abortController.abort();
+
 		throw new ErrorResponse('Invalid "Content-Type".', STATUS_CODES.UNSUPPORTED_MEDIA_TYPE);
 	}
 

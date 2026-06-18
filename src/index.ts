@@ -12,49 +12,60 @@ const router = new Router();
 router.get('/', () => new TextResponse('it works!'));
 
 router.post('/', async (request) => {
-	const { source, target } = await parseWebmentionPatameters(request);
+	try {
+		const { source, target } = await parseWebmentionPatameters(request);
 
-	const response = await fetchHeaders(source);
-	const { contentType, status } = validateFetchResponse(response);
+		const abortController = new AbortController();
+		const response = await fetchHeaders(source, abortController);
+		const { contentType, status } = validateFetchResponse(response, abortController);
 
-	const hasMention = await hasExistingMention(source.href, target.href);
+		const hasMention = await hasExistingMention(source.href, target.href);
 
-	if (status === STATUS_CODES.GONE) {
-		if (!hasMention) {
-			throw new ErrorResponse('Web mention does not exist.', STATUS_CODES.NOT_FOUND);
+		if (status === STATUS_CODES.GONE) {
+			abortController.abort();
+
+			if (!hasMention) {
+				throw new ErrorResponse('Web mention does not exist.', STATUS_CODES.NOT_FOUND);
+			}
+
+			await deleteMention(source.href, target.href);
+			return new TextResponse('Webmention deleted.');
 		}
 
-		await deleteMention(source.href, target.href);
-		return new TextResponse('Webmention deleted.');
-	}
+		const responseText = await processResponseBody(response, abortController);
 
-	const responseText = await processResponseBody(response);
-
-	let webmention: ParsedWebmention | undefined;
-	if (contentType.startsWith('text/html') || contentType.startsWith('application/xhtml+xml')) {
-		webmention = getWebmentionFromHtml(responseText, source, target);
-	} else if (contentType.startsWith('application/json')) {
-		webmention = getWebmentionFromJson(responseText, target);
-	} else {
-		webmention = getWebmentionFromText(responseText, target);
-	}
-
-	if (!webmention) {
-		if (!hasMention) {
-			throw new ErrorResponse("Source doesn't mention target.", STATUS_CODES.NOT_FOUND);
+		let webmention: ParsedWebmention | undefined;
+		if (contentType.startsWith('text/html') || contentType.startsWith('application/xhtml+xml')) {
+			webmention = getWebmentionFromHtml(responseText, source, target);
+		} else if (contentType.startsWith('application/json')) {
+			webmention = getWebmentionFromJson(responseText, target);
+		} else {
+			webmention = getWebmentionFromText(responseText, target);
 		}
 
-		await deleteMention(source.href, target.href);
-		return new TextResponse('Webmention deleted.');
-	}
+		if (!webmention) {
+			if (!hasMention) {
+				throw new ErrorResponse("Source doesn't mention target.", STATUS_CODES.NOT_FOUND);
+			}
 
-	if (hasMention) {
-		await updateWebmention(source.href, webmention);
-		return new TextResponse('Webmention updated.', STATUS_CODES.ACCEPTED);
-	}
+			await deleteMention(source.href, target.href);
+			return new TextResponse('Webmention deleted.');
+		}
 
-	await saveWebmention(source.href, webmention);
-	return new TextResponse('Webmention created.', STATUS_CODES.CREATED);
+		if (hasMention) {
+			await updateWebmention(source.href, webmention);
+			return new TextResponse('Webmention updated.', STATUS_CODES.ACCEPTED);
+		}
+
+		await saveWebmention(source.href, webmention);
+		return new TextResponse('Webmention created.', STATUS_CODES.CREATED);
+	} catch (err) {
+		if (err instanceof DOMException && ['TimeoutError', 'AbortError'].includes(err.name)) {
+			return new ErrorResponse('"source" request timeout.', STATUS_CODES.REQUEST_TIMEOUT);
+		}
+
+		throw err;
+	}
 });
 
 router.get('/mentions', async (request) => {
