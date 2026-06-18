@@ -15,6 +15,9 @@ dist/
 node_modules/
 .wrangler
 
+# tests
+coverage
+
 # env
 .env
 .env.production
