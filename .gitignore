@@ -1,37 +1,30 @@
-# prod
-dist/
-
-# dev
-.yarn/
-!.yarn/releases
+# IDEs
 .vscode/*
-!.vscode/launch.json
-!.vscode/*.code-snippets
 .idea/workspace.xml
 .idea/usage.statistics.xml
 .idea/shelf
 
-# deps
+# Dependencies
 node_modules/
 .wrangler
 
-# tests
+# Test artifacts
 coverage
 
-# env
+# Env and configuration files
 .env
-.env.production
+.env.*
 .dev.vars
 src/env.d.ts
+wrangler.json
 
-# logs
+# Logs
 logs/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
 
-# misc
+# MacOS artifacts
 .DS_Store
+
+# Certificates
+certs

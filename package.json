@@ -12,15 +12,14 @@
 		"bootstrap:types": "wrangler types src/env.d.ts",
 		"bootstrap:certs": "mkdir certs && mkcert -key-file='./certs/server.key' -cert-file='./certs/server.crt' \"localhost\"",
 		"bootstrap": "pnpm run bootstrap:types && pnpm run bootstrap:certs",
-		"prestart": "pnpm run bootstrap:types",
 		"start": "wrangler dev src/index.ts",
 		"deploy": "wrangler deploy --minify --env=\"\"",
-		"format": "dprint fmt --staged",
+		"format": "dprint fmt",
 		"typecheck": "tsc --noEmit",
 		"lint:js": "oxlint --fix",
 		"lint": "pnpm run typecheck && pnpm run lint:js",
-		"db:migrations:local": "wrangler d1 migrations apply madcampos-site-db",
-		"db:migrations:remote": "wrangler d1 migrations apply madcampos-site-db --remote",
+		"db:migrations:local": "wrangler d1 migrations apply webmentions-db",
+		"db:migrations:remote": "wrangler d1 migrations apply webmentions-db --remote",
 		"test": "vitest"
 	},
 	"devDependencies": {

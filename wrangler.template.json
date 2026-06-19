@@ -10,7 +10,7 @@
 	"minify": true,
 	"workers_dev": false,
 	"preview_urls": false,
-	"route": { "pattern": "webmentions.madcampos.dev", "custom_domain": true },
+	"route": { "pattern": "[YOUR DOMAIN]", "custom_domain": true },
 	"observability": {
 		"enabled": true,
 		"head_sampling_rate": 1
@@ -25,7 +25,7 @@
 		{
 			"binding": "Database",
 			"database_name": "webmentions-db",
-			"database_id": "bcbec7be-b606-4ce1-a81d-43b17e871393",
+			"database_id": "[YOUR DB ID]",
 			"preview_database_id": "webmentions-db",
 			"migrations_dir": "db/migrations",
 			"migrations_table": "migrations"
@@ -33,8 +33,8 @@
 	],
 	"vars": {
 		"NODE_ENV": "production",
-		"ALLOWED_ORIGINS": "madcampos.dev",
-		"TARGET_PATHS": "/blog/"
+		"ALLOWED_ORIGINS": "[YOUR SITE ORIGINS]",
+		"TARGET_PATHS": "[YOUR SITE PATHS]"
 	},
 	"env": {
 		"local": {
@@ -50,8 +50,8 @@
 			],
 			"vars": {
 				"NODE_ENV": "local",
-				"ALLOWED_ORIGINS": "madcampos.dev;localhost",
-				"TARGET_PATHS": "/blog/"
+				"ALLOWED_ORIGINS": "localhost",
+				"TARGET_PATHS": "/"
 			}
 		}
 	}
